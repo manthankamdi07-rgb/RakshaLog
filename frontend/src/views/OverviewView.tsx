@@ -251,7 +251,7 @@ export const OverviewView: React.FC = () => {
                   <span className="text-red-400 font-semibold">{stockoutsPreventedCount} Depleted</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>After (RAKSHALOG):</span>
+                  <span>After (ForwardLog AI):</span>
                   <span className="text-emerald-400 font-semibold">0 Stockouts (Protected)</span>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export const OverviewView: React.FC = () => {
                   <span className="text-slate-300 font-semibold">{manualDistanceKm} km baseline</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>After (RAKSHALOG):</span>
+                  <span>After (ForwardLog AI):</span>
                   <span className="text-cyan-300 font-semibold">{rakshaDistanceKm} km (Optimized)</span>
                 </div>
               </div>
@@ -309,7 +309,7 @@ export const OverviewView: React.FC = () => {
                   <span className="text-slate-300 font-semibold">{passK4Blocked ? '3.5' : '4.0'} Hours baseline</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>After (RAKSHALOG):</span>
+                  <span>After (ForwardLog AI):</span>
                   <span className="text-purple-300 font-semibold">{rakshaPlanningMinutes} Minutes (Instant)</span>
                 </div>
               </div>
@@ -338,7 +338,7 @@ export const OverviewView: React.FC = () => {
                   <span className="text-slate-300 font-semibold">3 Trucks &bull; {manualFuelL}L baseline</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>After (RAKSHALOG):</span>
+                  <span>After (ForwardLog AI):</span>
                   <span className="text-amber-300 font-semibold">2 Trucks &bull; {rakshaFuelL}L Consumed</span>
                 </div>
               </div>

@@ -500,7 +500,7 @@ export const DataIntegrationView: React.FC = () => {
             <div className="flex items-center space-x-2 text-emerald-400">
               <Sparkles className="w-4 h-4" />
               <h3 className="font-display font-bold text-sm text-emerald-300">
-                AFTER: RAKSHALOG REAL-TIME COMMON OPERATING PICTURE
+                AFTER: FORWARDLOG AI REAL-TIME COMMON OPERATING PICTURE
               </h3>
             </div>
             <span className="text-[10px] font-mono text-emerald-300 px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700">

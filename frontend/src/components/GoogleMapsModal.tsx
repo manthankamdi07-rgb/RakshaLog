@@ -262,7 +262,7 @@ export const GoogleMapsModal: React.FC<GoogleMapsModalProps> = ({
               </a>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-              Google provides $200 free monthly credit for Maps JavaScript API and Geocoding API (~28,000 monthly map loads). Even without a key, Google Hybrid and Satellite tiles render immediately in RakshaLog.
+              Google provides $200 free monthly credit for Maps JavaScript API and Geocoding API (~28,000 monthly map loads). Even without a key, Google Hybrid and Satellite tiles render immediately in ForwardLog AI.
             </p>
           </div>
         </div>

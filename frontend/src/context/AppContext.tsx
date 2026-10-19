@@ -92,9 +92,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('RAKSHALOG_AUTH');
+      if (stored === 'true') return true;
       if (stored === 'false') return false;
     }
-    return true;
+    return false;
   });
 
   const signOut = () => {

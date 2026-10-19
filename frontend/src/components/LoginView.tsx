@@ -37,13 +37,15 @@ export const LoginView: React.FC = () => {
         theme === 'light' ? 'border-slate-200 bg-white/80' : 'border-slate-800/80 bg-[#0B0F19]/80'
       } backdrop-blur-md`}>
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-md shadow-cyan-500/20">
-            <Radio className="w-4 h-4 text-white animate-pulse" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="ForwardLog AI Logo"
+            className="w-8 h-8 rounded-lg object-contain shadow-xs shrink-0"
+          />
           <div>
             <div className="flex items-center space-x-1.5">
               <span className={`font-display font-bold text-base tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                RAKSHALOG
+                FORWARDLOG AI
               </span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold ${
                 theme === 'light' ? 'bg-cyan-50 text-cyan-800 border border-cyan-200' : 'bg-cyan-950 text-cyan-400 border border-cyan-800'
@@ -231,7 +233,7 @@ export const LoginView: React.FC = () => {
       <footer className={`h-8 border-t px-6 flex items-center justify-between text-[11px] font-mono ${
         theme === 'light' ? 'border-slate-200 bg-white text-slate-500' : 'border-slate-800 bg-[#070A11] text-slate-500'
       }`}>
-        <span>RAKSHALOG TACTICAL LOGISTICS OS &bull; SECTOR TRISHUL (PS-26251)</span>
+        <span>FORWARDLOG AI TACTICAL LOGISTICS OS &bull; SECTOR TRISHUL (PS-26251)</span>
         <span className="text-slate-400 font-semibold tracking-wide">Synthetic Data / Unclassified</span>
       </footer>
     </div>

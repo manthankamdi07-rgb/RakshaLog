@@ -4,7 +4,7 @@ import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { CommanderPinModal } from './components/CommanderPinModal';
 import { DiagnosticModal } from './components/DiagnosticModal';
-import { LoginView } from './components/LoginView';
+import { LandingPage } from './components/LandingPage';
 
 import { OverviewView } from './views/OverviewView';
 import { MapView } from './views/MapView';
@@ -36,7 +36,7 @@ const AppShell: React.FC = () => {
   const { theme, isAuthenticated } = useApp();
 
   if (!isAuthenticated) {
-    return <LoginView />;
+    return <LandingPage />;
   }
 
   return (
@@ -47,7 +47,7 @@ const AppShell: React.FC = () => {
         <MainContent />
       </div>
       <footer className={`h-6 border-t ${theme === 'light' ? 'border-slate-200 bg-white text-slate-500' : 'border-slate-800 bg-[#070A11] text-slate-500'} px-4 flex items-center justify-between text-[11px] font-mono shrink-0 transition-colors`}>
-        <span>RAKSHALOG TACTICAL LOGISTICS OS &bull; SECTOR TRISHUL (PS-26251)</span>
+        <span>FORWARDLOG AI TACTICAL LOGISTICS OS &bull; SECTOR TRISHUL (PS-26251)</span>
         <span className="text-slate-400 font-semibold tracking-wide">Synthetic Data / Unclassified</span>
       </footer>
       <CommanderPinModal />

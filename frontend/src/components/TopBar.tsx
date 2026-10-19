@@ -61,13 +61,15 @@ export const TopBar: React.FC = () => {
       {/* 1. Left: Branding & Sector (Requirement 1: keep Sector visible) */}
       <div className="flex items-center space-x-3 shrink-0">
         <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-md shadow-cyan-500/20 shrink-0">
-            <Radio className="w-4 h-4 text-white animate-pulse" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="ForwardLog AI Logo"
+            className="w-8 h-8 rounded-lg object-contain shadow-xs shrink-0"
+          />
           <div>
             <div className="flex items-center space-x-1.5">
               <span className={`font-display font-bold text-base tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                RAKSHALOG
+                FORWARDLOG AI
               </span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold ${
                 theme === 'light'

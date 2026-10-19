@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type {
   UserPersona,
   TacticalNode,
@@ -9,12 +9,25 @@ import type {
 } from '../types';
 import {
   INITIAL_PERSONAS,
-  INITIAL_NODES,
   INITIAL_CONVOYS,
   INITIAL_ALERTS,
-  INITIAL_INVENTORY,
   INITIAL_DISPATCH_PROPOSAL,
 } from '../mockData';
+import {
+  computeAgniFuelForecast,
+  computeRudraLeakAnalysis,
+  computeModelBacktestMetrics,
+  buildSynchronizedInventory,
+  buildSynchronizedNodes,
+  computeSectorAverageDos,
+  SHARED_MODEL_METRICS,
+  RUDRA_TANK_CONFIG,
+  formatShortDTG,
+  formatMilitaryDTG,
+  type AgniFuelAnalysis,
+  type RudraLeakAnalysis,
+  type ModelBacktestMetrics,
+} from '../utils/logisticsStore';
 
 interface AppContextType {
   currentPersona: UserPersona;
@@ -32,11 +45,30 @@ interface AppContextType {
   isPinModalOpen: boolean;
   isDiagnosticModalOpen: boolean;
   simulationLogs: { id: string; time: string; text: string; type: 'crisis' | 'action' | 'system' }[];
-  
+
   theme: 'dark' | 'light';
   setTheme: (theme: 'dark' | 'light') => void;
   toggleTheme: () => void;
-  
+
+  // Authentication State
+  isAuthenticated: boolean;
+  signOut: () => void;
+  signIn: (personaKey?: string) => void;
+
+  // Single Shared Data Store Elements
+  rudraLeakAnalysis: RudraLeakAnalysis;
+  agniFuelAnalysis: AgniFuelAnalysis;
+  modelMetrics: ModelBacktestMetrics;
+  avgDos: string;
+  temperature: number;
+  setTemperature: (t: number) => void;
+  troopCount: number;
+  setTroopCount: (c: number) => void;
+  blizzardDays: number;
+  setBlizzardDays: (d: number) => void;
+  currentDtgClock: string;
+  currentShortDtg: string;
+
   // Actions
   switchPersona: (personaKey: string) => void;
   setActiveTab: (tab: string) => void;
@@ -57,24 +89,123 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPersona, setCurrentPersona] = useState<UserPersona>(INITIAL_PERSONAS.maj_rao);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('RAKSHALOG_AUTH');
+      if (stored === 'false') return false;
+    }
+    return true;
+  });
+
+  const signOut = () => {
+    setIsAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('RAKSHALOG_AUTH', 'false');
+    }
+    try {
+      playTacticalSound('alert');
+    } catch {
+      // ignore
+    }
+  };
+
+  const signIn = (personaKey?: string) => {
+    if (personaKey && INITIAL_PERSONAS[personaKey]) {
+      setCurrentPersona(INITIAL_PERSONAS[personaKey]);
+    }
+    setIsAuthenticated(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('RAKSHALOG_AUTH', 'true');
+    }
+    try {
+      playTacticalSound('success');
+    } catch {
+      // ignore
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<string>('overview');
-  const [nodes, setNodes] = useState<TacticalNode[]>(INITIAL_NODES);
   const [convoys, setConvoys] = useState<Convoy[]>(INITIAL_CONVOYS);
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS);
-  const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
   const [dispatchProposal, setDispatchProposal] = useState<DispatchProposal>(INITIAL_DISPATCH_PROPOSAL);
-  
+
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [passK4Blocked, setPassK4Blocked] = useState<boolean>(true);
   const [fpAgniBlizzard, setFpAgniBlizzard] = useState<boolean>(true);
+
+  // Simulation Sliders (Shared store source)
+  const [temperature, setTemperature] = useState<number>(-18);
+  const [troopCount, setTroopCount] = useState<number>(120);
+  const [blizzardDays, setBlizzardDays] = useState<number>(8);
+
+  // FAP Rudra Tank-03 State (Shared store source)
   const [tank03Leak, setTank03Leak] = useState<boolean>(true);
+  const [tank03Volume, setTank03Volume] = useState<number>(RUDRA_TANK_CONFIG.baselineOnHandL);
+  const [tank03Isolated, setTank03Isolated] = useState<boolean>(false);
+
+  // 1. Single calculation engine for FAP Rudra leak
+  const rudraLeakAnalysis = useMemo(
+    () => computeRudraLeakAnalysis(tank03Leak, tank03Volume, tank03Isolated),
+    [tank03Leak, tank03Volume, tank03Isolated]
+  );
+
+  // 2. Single calculation engine for FP Agni fuel forecast & runway
+  const agniFuelAnalysis = useMemo(
+    () => computeAgniFuelForecast(temperature, troopCount, fpAgniBlizzard),
+    [temperature, troopCount, fpAgniBlizzard]
+  );
+
+  // 3. Single calculation engine for Model Evaluation & Backtest Metrics
+  const modelMetrics = useMemo(() => computeModelBacktestMetrics(), []);
+
+  // 4. Synchronized Inventory Ledger
+  const inventory = useMemo(
+    () => buildSynchronizedInventory(agniFuelAnalysis, rudraLeakAnalysis),
+    [agniFuelAnalysis, rudraLeakAnalysis]
+  );
+
+  // 5. Synchronized Tactical Nodes & Sustainability Matrix
+  const nodes = useMemo(
+    () => buildSynchronizedNodes(agniFuelAnalysis, rudraLeakAnalysis),
+    [agniFuelAnalysis, rudraLeakAnalysis]
+  );
+
+  // 6. Sector average sustainability
+  const avgDos = useMemo(() => computeSectorAverageDos(nodes), [nodes]);
+
+  // Sync alert texts with shared calculation outputs
+  useEffect(() => {
+    setAlerts((prev) =>
+      prev.map((a) => {
+        if (a.id === 'ALT-9041') {
+          return {
+            ...a,
+            detail: tank03Isolated
+              ? 'Tank POL-D-03 ISOLATED and purged from active ledger.'
+              : `Depletion rate exceeds maximum operational draw while digital dispense gate is verified closed. Critical runway: ${rudraLeakAnalysis.formattedHours} (${rudraLeakAnalysis.formattedDays}). Structural breach or seal failure probability: 89%.`,
+            severity: tank03Leak ? 'CRITICAL' : 'INFO',
+          };
+        }
+        if (a.id === 'ALT-9043') {
+          return {
+            ...a,
+            headline: `Stockout Projected in ${agniFuelAnalysis.hoursToStockout} Hours (${agniFuelAnalysis.formattedDays})`,
+            detail: `Western Disturbance will plunge temps to -22°C. Current Arctic fuel runway will deplete in ${agniFuelAnalysis.hoursToStockout} hours (${agniFuelAnalysis.formattedDays}). Pre-emptive dispatch required before road freeze.`,
+            severity: agniFuelAnalysis.dosDays < 5 ? 'WARNING' : 'INFO',
+          };
+        }
+        return a;
+      })
+    );
+  }, [rudraLeakAnalysis, agniFuelAnalysis, tank03Isolated, tank03Leak]);
   
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('RAKSHALOG_THEME');
-      if (saved === 'light' || saved === 'dark') return saved;
+      if (saved === 'dark') return 'dark';
+      if (saved === 'light') return 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
   useEffect(() => {
@@ -94,19 +225,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const [dtgNow, setDtgNow] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setDtgNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentDtgClock = formatMilitaryDTG(dtgNow);
+  const currentShortDtg = formatShortDTG(dtgNow);
+
   const [selectedConvoy, setSelectedConvoy] = useState<Convoy | null>(INITIAL_CONVOYS[0]);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
   const [isDiagnosticModalOpen, setIsDiagnosticModalOpen] = useState<boolean>(false);
 
   const [simulationLogs, setSimulationLogs] = useState<{ id: string; time: string; text: string; type: 'crisis' | 'action' | 'system' }[]>([
-    { id: '1', time: '16:30:15', text: 'System initialized. Tactical mesh connected to 6 forward post telemetry repeaters.', type: 'system' },
-    { id: '2', time: '16:35:00', text: 'Landslide detected at Pass K-4. Road passability dropped to 0%.', type: 'crisis' },
-    { id: '3', time: '16:42:10', text: 'Ultrasonic transducer alarm on POL-Tank-03 at FAP Rudra (-120 L/hr).', type: 'crisis' },
+    { id: '1', time: formatShortDTG(new Date(Date.now() - 30 * 60 * 1000)), text: 'System initialized. Tactical mesh connected to 6 forward post telemetry repeaters.', type: 'system' },
+    { id: '2', time: formatShortDTG(new Date(Date.now() - 15 * 60 * 1000)), text: 'Landslide detected at Pass K-4. Road passability dropped to 0%.', type: 'crisis' },
+    { id: '3', time: formatShortDTG(new Date(Date.now() - 5 * 60 * 1000)), text: 'Ultrasonic transducer alarm on POL-Tank-03 at FAP Rudra (-120 L/hr).', type: 'crisis' },
   ]);
 
   const addSimLog = (text: string, type: 'crisis' | 'action' | 'system') => {
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0];
+    const timeStr = formatShortDTG(new Date());
     setSimulationLogs((prev) => [{ id: Math.random().toString(), time: timeStr, text, type }, ...prev.slice(0, 40)]);
   };
 
@@ -207,16 +347,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const remedyTankLeak = (action: 'ISOLATE' | 'SIREN' | 'FALSE_ALARM') => {
     if (action === 'ISOLATE') {
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.itemCode === 'POL-D-03'
-            ? { ...item, status: 'CRITICAL', sensorHealth: 'OFFLINE', quantityOnHand: 0 }
-            : item
-        )
-      );
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === 'ALT-9041' ? { ...a, acknowledged: true, detail: 'Tank POL-D-03 ISOLATED and purged from active ledger.' } : a))
-      );
+      setTank03Isolated(true);
+      setTank03Leak(false);
+      setTank03Volume(0);
       playTacticalSound('success');
       addSimLog('POL-Tank-03 structurally ISOLATED and marked OFFLINE in logistics ledger.', 'action');
     } else if (action === 'SIREN') {
@@ -224,13 +357,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addSimLog('Local emergency siren and HAZMAT crew dispatched at FAP Rudra for Tank-03 breach inspection.', 'action');
     } else {
       setTank03Leak(false);
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.itemCode === 'POL-D-03'
-            ? { ...item, status: 'ADEQUATE', sensorHealth: 'HEALTHY' }
-            : item
-        )
-      );
+      setTank03Isolated(false);
+      setTank03Volume(RUDRA_TANK_CONFIG.baselineOnHandL);
+      playTacticalSound('success');
       addSimLog('POL-Tank-03 marked as sensor calibration glitch. Status restored to nominal.', 'action');
     }
     setIsDiagnosticModalOpen(false);
@@ -245,9 +374,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const triggerScenario = (type: 'BLIZZARD' | 'LANDSLIDE' | 'LEAK' | 'RESET') => {
     if (type === 'BLIZZARD') {
       setFpAgniBlizzard(true);
-      setNodes((prev) =>
-        prev.map((n) => (n.id === 'NODE-FP-AGNI' ? { ...n, dosClassIII: 2.8, status: 'CRITICAL' } : n))
-      );
+      setTemperature(-24);
+      setTroopCount(140);
       playTacticalSound('alert');
       addSimLog('CRISIS TRIGGERED: Western Disturbance Blizzard at FP Agni. Temps drop to -24°C, burn rate surges.', 'crisis');
     } else if (type === 'LANDSLIDE') {
@@ -259,13 +387,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addSimLog('CRISIS TRIGGERED: Landslide blocks Pass K-4. Convoy Vajra-4 stranded without bypass.', 'crisis');
     } else if (type === 'LEAK') {
       setTank03Leak(true);
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.itemCode === 'POL-D-03'
-            ? { ...item, status: 'LEAK_ANOMALY', sensorHealth: 'ANOMALY_ALARM', quantityOnHand: 1080 }
-            : item
-        )
-      );
+      setTank03Isolated(false);
+      setTank03Volume(RUDRA_TANK_CONFIG.baselineOnHandL);
       playTacticalSound('alert');
       addSimLog('CRISIS TRIGGERED: Rapid liquid transducer drop on POL-Tank-03 at FAP Rudra (-120 L/hr).', 'crisis');
     } else {
@@ -273,9 +396,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPassK4Blocked(false);
       setFpAgniBlizzard(false);
       setTank03Leak(false);
-      setNodes(INITIAL_NODES.map((n) => ({ ...n, dosClassIII: n.id === 'NODE-FP-AGNI' ? 12.0 : n.dosClassIII, status: 'OPTIMAL' })));
+      setTank03Isolated(false);
+      setTank03Volume(RUDRA_TANK_CONFIG.baselineOnHandL);
+      setTemperature(-10);
+      setTroopCount(100);
       setConvoys(INITIAL_CONVOYS.map((c) => ({ ...c, status: 'IN_TRANSIT' })));
-      setInventory(INITIAL_INVENTORY.map((i) => ({ ...i, status: 'OPTIMAL', sensorHealth: 'HEALTHY' })));
       setDispatchProposal(INITIAL_DISPATCH_PROPOSAL);
       playTacticalSound('success');
       addSimLog('SIMULATION RESET: All sector nodes, passes, and IoT transducers returned to nominal baseline.', 'system');
@@ -301,6 +426,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDiagnosticModalOpen,
         simulationLogs,
         theme,
+        isAuthenticated,
+        signOut,
+        signIn,
+        rudraLeakAnalysis,
+        agniFuelAnalysis,
+        modelMetrics,
+        avgDos,
+        temperature,
+        setTemperature,
+        troopCount,
+        setTroopCount,
+        blizzardDays,
+        setBlizzardDays,
+        currentDtgClock,
+        currentShortDtg,
         setTheme,
         toggleTheme,
         switchPersona,

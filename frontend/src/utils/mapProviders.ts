@@ -3,6 +3,8 @@ export type MapProviderId =
   | 'google-satellite'
   | 'google-terrain'
   | 'google-roadmap'
+  | 'osm-standard'
+  | 'osm-topo'
   | 'esri-dark'
   | 'esri-satellite'
   | 'carto-dark';
@@ -10,13 +12,14 @@ export type MapProviderId =
 export interface MapProviderConfig {
   id: MapProviderId;
   name: string;
-  category: 'Google Maps' | 'Tactical Vector / Dark' | 'Satellite Imagery';
+  category: 'Google Maps' | 'OpenStreetMap / Offline' | 'Tactical Vector / Dark' | 'Satellite Imagery';
   url: string;
   subdomains?: string | string[];
   maxZoom: number;
   attribution: string;
   className?: string;
   requiresKey?: boolean;
+  isOfflineCapable?: boolean;
 }
 
 export const MAP_PROVIDERS: Record<MapProviderId, MapProviderConfig> = {
@@ -28,6 +31,7 @@ export const MAP_PROVIDERS: Record<MapProviderId, MapProviderConfig> = {
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
     attribution: 'Map data &copy; Google Maps',
+    requiresKey: true,
   },
   'google-satellite': {
     id: 'google-satellite',
@@ -37,6 +41,7 @@ export const MAP_PROVIDERS: Record<MapProviderId, MapProviderConfig> = {
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
     attribution: 'Map data &copy; Google Maps',
+    requiresKey: true,
   },
   'google-terrain': {
     id: 'google-terrain',
@@ -46,6 +51,7 @@ export const MAP_PROVIDERS: Record<MapProviderId, MapProviderConfig> = {
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
     attribution: 'Map data &copy; Google Maps',
+    requiresKey: true,
   },
   'google-roadmap': {
     id: 'google-roadmap',
@@ -56,6 +62,27 @@ export const MAP_PROVIDERS: Record<MapProviderId, MapProviderConfig> = {
     maxZoom: 20,
     attribution: 'Map data &copy; Google Maps',
     className: 'tactical-dark-tile-filter',
+    requiresKey: true,
+  },
+  'osm-standard': {
+    id: 'osm-standard',
+    name: 'OpenStreetMap (Offline Fallback)',
+    category: 'OpenStreetMap / Offline',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c'],
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    isOfflineCapable: true,
+  },
+  'osm-topo': {
+    id: 'osm-topo',
+    name: 'OpenTopoMap (Himalayan Relief)',
+    category: 'OpenStreetMap / Offline',
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c'],
+    maxZoom: 17,
+    attribution: 'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap',
+    isOfflineCapable: true,
   },
   'esri-dark': {
     id: 'esri-dark',

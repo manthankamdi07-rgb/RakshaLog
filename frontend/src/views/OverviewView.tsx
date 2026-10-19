@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   ShieldAlert,
@@ -7,12 +7,19 @@ import {
   Layers,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ArrowRight,
   Zap,
   Activity,
   CheckCircle2,
   AlertOctagon,
+  ShieldCheck,
+  TrendingUp,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
+import { ExpandableText } from '../components/ExpandableText';
 
 export const OverviewView: React.FC = () => {
   const {
@@ -25,7 +32,12 @@ export const OverviewView: React.FC = () => {
     acknowledgeAlert,
     stageForecastToDispatch,
     passK4Blocked,
+    fpAgniBlizzard,
+    tank03Leak,
+    temperature,
     theme,
+    agniFuelAnalysis,
+    modelMetrics,
   } = useApp();
 
   const criticalAlerts = alerts.filter((a) => a.severity === 'CRITICAL');
@@ -33,6 +45,40 @@ export const OverviewView: React.FC = () => {
     nodes.reduce((acc, n) => acc + (n.dosClassI + n.dosClassIII + n.dosClassV) / 3, 0) /
     nodes.length
   ).toFixed(1);
+
+  // Dynamic Operational Impact Calculations (Scenario-Sensitive)
+  // 1. Stockouts Prevented
+  const preventedItems: string[] = [];
+  if (fpAgniBlizzard || temperature <= -18) {
+    preventedItems.push('FP Agni (POL-D-01 Fuel)');
+  }
+  if (tank03Leak) {
+    preventedItems.push('FAP Rudra (POL-D-03 Tank)');
+  }
+  if (preventedItems.length === 0) {
+    preventedItems.push('FP Himmat (Class I Rations)');
+  }
+  const stockoutsPreventedCount = preventedItems.length;
+
+  const [isRoiExpanded, setIsRoiExpanded] = useState(true);
+
+  // 2. Distance Saved (km) - Single source of truth from dispatchProposal (68 km)
+  const distanceSavedKm = dispatchProposal.efficiency.distanceSavedKm;
+  const manualDistanceKm = 348;
+  const rakshaDistanceKm = manualDistanceKm - distanceSavedKm;
+  const distanceReductionPct = Number(((distanceSavedKm / manualDistanceKm) * 100).toFixed(1));
+
+  // 3. Planning Time Reduced
+  const manualPlanningMinutes = passK4Blocked ? 210 : 240;
+  const rakshaPlanningMinutes = passK4Blocked ? 18 : 6;
+  const timeReductionPct = Number((((manualPlanningMinutes - rakshaPlanningMinutes) / manualPlanningMinutes) * 100).toFixed(1));
+
+  // 4. Convoy Consolidation Savings
+  const vehiclesSavedCount = 1; // 1 Standby vehicle saved (3 separate dispatches -> 2 multi-drop vehicles)
+  const fuelSavedL = dispatchProposal.efficiency.fuelSavedL;
+  const manualFuelL = 420;
+  const rakshaFuelL = manualFuelL - fuelSavedL;
+  const fuelReductionPct = Number(((fuelSavedL / manualFuelL) * 100).toFixed(1));
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -157,12 +203,151 @@ export const OverviewView: React.FC = () => {
           </div>
           <p className={`text-[10px] font-mono ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'} mt-3 flex items-center justify-between`}>
             <span>Payload: {dispatchProposal.efficiency.payloadUtilizationPct}%</span>
-            <span>+68km Saved</span>
+            <span>+{distanceSavedKm}km Saved</span>
           </p>
         </div>
       </div>
 
-      {/* 2. Main Grid: Readiness Matrix (Left) + Critical Alerts & AI Action (Right) */}
+      {/* 2. Operational Impact & Tactical ROI (4 KPI Cards - Collapsible) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div className="flex items-center space-x-2.5">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <h2 className={`font-display font-bold text-sm tracking-wide ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+              OPERATIONAL IMPACT & TACTICAL ROI
+            </h2>
+          </div>
+          <button
+            onClick={() => setIsRoiExpanded(!isRoiExpanded)}
+            className="flex items-center space-x-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300 transition-colors px-2.5 py-1 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900/60 cursor-pointer"
+          >
+            <span>{isRoiExpanded ? 'Hide Impact Metrics' : 'Show Impact Metrics (4 KPIs)'}</span>
+            {isRoiExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {isRoiExpanded && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+            {/* Card 1: Stockouts Prevented */}
+            <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-[11px] font-mono uppercase tracking-wider">Stockouts Prevented</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-mono font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  {stockoutsPreventedCount} <span className="text-xs font-normal text-slate-400 font-sans">Items</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  100% PREVENTED
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-cyan-400 truncate">
+                {preventedItems.join(', ')}
+              </p>
+              <div className="pt-2 border-t border-slate-800/80 space-y-1 text-[10px] font-mono text-slate-400">
+                <div className="flex justify-between">
+                  <span>Before (manual):</span>
+                  <span className="text-red-400 font-semibold">{stockoutsPreventedCount} Depleted</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>After (RAKSHALOG):</span>
+                  <span className="text-emerald-400 font-semibold">0 Stockouts (Protected)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Distance Saved (km) */}
+            <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-[11px] font-mono uppercase tracking-wider">Distance Saved</span>
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-mono font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  +{distanceSavedKm} <span className="text-xs font-normal text-slate-400 font-sans">km</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
+                  -{distanceReductionPct}% ROUTE
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400 truncate">
+                Multi-Drop Consolidation (Plan #DP-2026-108)
+              </p>
+              <div className="pt-2 border-t border-slate-800/80 space-y-1 text-[10px] font-mono text-slate-400">
+                <div className="flex justify-between">
+                  <span>Before (manual):</span>
+                  <span className="text-slate-300 font-semibold">{manualDistanceKm} km baseline</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>After (RAKSHALOG):</span>
+                  <span className="text-cyan-300 font-semibold">{rakshaDistanceKm} km (Optimized)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Planning Time Reduced */}
+            <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-[11px] font-mono uppercase tracking-wider">Planning Time</span>
+                <Clock className="w-4 h-4 text-purple-400" />
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-mono font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  {rakshaPlanningMinutes} <span className="text-xs font-normal text-slate-400 font-sans">Min</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                  -{timeReductionPct}% CYCLE
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400 truncate">
+                Auto-Bundling & Crypto PIN vs 4.0h Manual
+              </p>
+              <div className="pt-2 border-t border-slate-800/80 space-y-1 text-[10px] font-mono text-slate-400">
+                <div className="flex justify-between">
+                  <span>Before (manual):</span>
+                  <span className="text-slate-300 font-semibold">{passK4Blocked ? '3.5' : '4.0'} Hours baseline</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>After (RAKSHALOG):</span>
+                  <span className="text-purple-300 font-semibold">{rakshaPlanningMinutes} Minutes (Instant)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Convoy Consolidation Savings */}
+            <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-2.5 hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-[11px] font-mono uppercase tracking-wider">Convoy Consolidation</span>
+                <Truck className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-mono font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  {vehiclesSavedCount} <span className="text-xs font-normal text-slate-400 font-sans">Truck</span> &bull; +{fuelSavedL}L
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                  -{fuelReductionPct}% FUEL
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400 truncate">
+                Bundled Bowser + ALS (88% payload ratio)
+              </p>
+              <div className="pt-2 border-t border-slate-800/80 space-y-1 text-[10px] font-mono text-slate-400">
+                <div className="flex justify-between">
+                  <span>Before (manual):</span>
+                  <span className="text-slate-300 font-semibold">3 Trucks &bull; {manualFuelL}L baseline</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>After (RAKSHALOG):</span>
+                  <span className="text-amber-300 font-semibold">2 Trucks &bull; {rakshaFuelL}L Consumed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Main Grid: Readiness Matrix (Left) + Critical Alerts & AI Action (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Sector Readiness Heatmap (Days of Supply) */}
         <div className="lg:col-span-2 glass-panel rounded-xl p-5 border border-slate-800 space-y-4">
@@ -326,12 +511,15 @@ export const OverviewView: React.FC = () => {
             <div className={`flex items-center space-x-2 text-xs font-mono mb-2 ${theme === 'light' ? 'text-cyan-700' : 'text-cyan-400'}`}>
               <Zap className="w-4 h-4 fill-cyan-500 text-cyan-500" />
               <span className="font-bold tracking-wider">AI LOGISTICS DIRECTIVE</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ml-auto ${
-                theme === 'light'
-                  ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
-                  : 'bg-cyan-900 text-cyan-200'
-              }`}>
-                CONFIDENCE: 94.2%
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ml-auto ${
+                  theme === 'light'
+                    ? 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                    : 'bg-cyan-900 text-cyan-200'
+                }`}
+                title={modelMetrics.label}
+              >
+                CONFIDENCE: {modelMetrics.mlConfidencePct}%
               </span>
             </div>
 
@@ -339,9 +527,12 @@ export const OverviewView: React.FC = () => {
               Pre-Stocking Dispatch Required for FP Agni
             </h3>
 
-            <p className={`text-xs mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
-              Western Disturbance blizzard will drop temperatures to -22°C within 72 hours, closing Pass K-4. Current Arctic fuel runway will deplete in 96 hours.
-            </p>
+            <ExpandableText
+              summary={agniFuelAnalysis.directiveText.slice(0, 95) + '...'}
+              details={agniFuelAnalysis.directiveText}
+              summaryClassName={`text-xs mt-1.5 leading-relaxed font-sans ${theme === 'light' ? 'text-slate-600' : 'text-slate-300'}`}
+              detailsClassName={`text-xs mt-1.5 leading-relaxed font-sans ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}
+            />
 
             <div className={`mt-3 p-3 rounded-lg border space-y-1.5 text-[11px] font-mono transition-colors ${
               theme === 'light'

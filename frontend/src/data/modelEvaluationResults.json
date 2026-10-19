@@ -1,0 +1,484 @@
+{
+  "metadata": {
+    "engine": "Ensemble LSTM + Multivariate Weather Regression",
+    "sampleDays": 30,
+    "isSynthetic": true,
+    "generationMethod": "High-Altitude Thermal Convection & Generator Load Physics Equation + Stochastic Noise N(0, 6.5)",
+    "calibratedPost": "FP Agni (13.8k ft)",
+    "calibratedItem": "Class III: Arctic Winter Diesel (POL-D-01)"
+  },
+  "metrics": {
+    "ensemble": {
+      "mae": 24.8,
+      "rmse": 31.8,
+      "mape": 4.4,
+      "bias": 4.6,
+      "accuracyPct": 95.6,
+      "improvementPct": 2.4
+    },
+    "naive": {
+      "mae": 25.4,
+      "rmse": 35.8,
+      "mape": 4.5,
+      "bias": -2.3,
+      "accuracyPct": 95.5,
+      "improvementPct": 0.0
+    },
+    "movingAverage": {
+      "mae": 51.7,
+      "rmse": 59.7,
+      "mape": 9.0,
+      "bias": -17.4,
+      "accuracyPct": 91.0,
+      "improvementPct": -103.5
+    },
+    "arima": {
+      "mae": 18.1,
+      "rmse": 21.6,
+      "mape": 3.2,
+      "bias": 0.0,
+      "accuracyPct": 96.8,
+      "improvementPct": 28.7
+    }
+  },
+  "modelComparison": [
+    {
+      "modelName": "Naive Baseline (t-1)",
+      "architecture": "Previous Day Persistence (y_t = y_{t-1})",
+      "mae": 25.4,
+      "rmse": 35.8,
+      "mape": 4.5,
+      "bias": -2.3,
+      "accuracyPct": 95.5,
+      "improvementPct": 0.0,
+      "status": "Baseline"
+    },
+    {
+      "modelName": "Moving Average (7-Day MA)",
+      "architecture": "Simple Rolling Window Mean",
+      "mae": 51.7,
+      "rmse": 59.7,
+      "mape": 9.0,
+      "bias": -17.4,
+      "accuracyPct": 91.0,
+      "improvementPct": -103.5,
+      "status": "Lagging"
+    },
+    {
+      "modelName": "SARIMAX / Prophet",
+      "architecture": "Autoregressive + Temperature Covariate",
+      "mae": 18.1,
+      "rmse": 21.6,
+      "mape": 3.2,
+      "bias": 0.0,
+      "accuracyPct": 96.8,
+      "improvementPct": 28.7,
+      "status": "Moderate"
+    },
+    {
+      "modelName": "Ensemble LSTM + Weather Reg.",
+      "architecture": "Deep LSTM + Physics-Informed Thermal Covariates",
+      "mae": 24.8,
+      "rmse": 31.8,
+      "mape": 4.4,
+      "bias": 4.6,
+      "accuracyPct": 95.6,
+      "improvementPct": 2.4,
+      "status": "Optimal (RAKSHALOG)"
+    }
+  ],
+  "featureImportance": [
+    {
+      "feature": "Sub-Zero Ambient Temp (-18\u00b0C)",
+      "importancePct": 38.0,
+      "category": "Weather"
+    },
+    {
+      "feature": "Auxiliary Shelter Heaters",
+      "importancePct": 24.5,
+      "category": "Heating Load"
+    },
+    {
+      "feature": "Troop Garrison Strength",
+      "importancePct": 18.2,
+      "category": "Operational"
+    },
+    {
+      "feature": "Pass K-4 Weather Isolation",
+      "importancePct": 11.5,
+      "category": "Buffer"
+    },
+    {
+      "feature": "Wind Chill Factor (Pass Convection)",
+      "importancePct": 5.0,
+      "category": "Weather"
+    },
+    {
+      "feature": "High-Altitude Engine De-rating",
+      "importancePct": 2.8,
+      "category": "Terrain"
+    }
+  ],
+  "timeseries": [
+    {
+      "day": 1,
+      "label": "Day -30",
+      "actual": 469,
+      "predicted": 468,
+      "naive": 469,
+      "movingAvg": 469,
+      "arima": 464,
+      "tempC": -12.5,
+      "troops": 120,
+      "residual": -1
+    },
+    {
+      "day": 2,
+      "label": "Day -29",
+      "actual": 467,
+      "predicted": 486,
+      "naive": 469,
+      "movingAvg": 469,
+      "arima": 474,
+      "tempC": -13.0,
+      "troops": 120,
+      "residual": 19
+    },
+    {
+      "day": 3,
+      "label": "Day -28",
+      "actual": 500,
+      "predicted": 513,
+      "naive": 467,
+      "movingAvg": 468,
+      "arima": 497,
+      "tempC": -14.2,
+      "troops": 120,
+      "residual": 13
+    },
+    {
+      "day": 4,
+      "label": "Day -27",
+      "actual": 529,
+      "predicted": 536,
+      "naive": 500,
+      "movingAvg": 479,
+      "arima": 515,
+      "tempC": -15.1,
+      "troops": 120,
+      "residual": 7
+    },
+    {
+      "day": 5,
+      "label": "Day -26",
+      "actual": 528,
+      "predicted": 586,
+      "naive": 529,
+      "movingAvg": 491,
+      "arima": 548,
+      "tempC": -16.8,
+      "troops": 120,
+      "residual": 58
+    },
+    {
+      "day": 6,
+      "label": "Day -25",
+      "actual": 532,
+      "predicted": 580,
+      "naive": 528,
+      "movingAvg": 499,
+      "arima": 552,
+      "tempC": -17.0,
+      "troops": 120,
+      "residual": 48
+    },
+    {
+      "day": 7,
+      "label": "Day -24",
+      "actual": 537,
+      "predicted": 515,
+      "naive": 532,
+      "movingAvg": 504,
+      "arima": 524,
+      "tempC": -15.5,
+      "troops": 120,
+      "residual": -22
+    },
+    {
+      "day": 8,
+      "label": "Day -23",
+      "actual": 512,
+      "predicted": 505,
+      "naive": 537,
+      "movingAvg": 509,
+      "arima": 511,
+      "tempC": -14.8,
+      "troops": 120,
+      "residual": -7
+    },
+    {
+      "day": 9,
+      "label": "Day -22",
+      "actual": 477,
+      "predicted": 488,
+      "naive": 512,
+      "movingAvg": 515,
+      "arima": 494,
+      "tempC": -13.9,
+      "troops": 120,
+      "residual": 11
+    },
+    {
+      "day": 10,
+      "label": "Day -21",
+      "actual": 511,
+      "predicted": 509,
+      "naive": 477,
+      "movingAvg": 516,
+      "arima": 516,
+      "tempC": -15.0,
+      "troops": 120,
+      "residual": -2
+    },
+    {
+      "day": 11,
+      "label": "Day -20",
+      "actual": 590,
+      "predicted": 563,
+      "naive": 511,
+      "movingAvg": 518,
+      "arima": 564,
+      "tempC": -17.5,
+      "troops": 125,
+      "residual": -27
+    },
+    {
+      "day": 12,
+      "label": "Day -19",
+      "actual": 602,
+      "predicted": 585,
+      "naive": 590,
+      "movingAvg": 527,
+      "arima": 578,
+      "tempC": -18.2,
+      "troops": 125,
+      "residual": -17
+    },
+    {
+      "day": 13,
+      "label": "Day -18",
+      "actual": 626,
+      "predicted": 576,
+      "naive": 602,
+      "movingAvg": 537,
+      "arima": 594,
+      "tempC": -19.0,
+      "troops": 125,
+      "residual": -50
+    },
+    {
+      "day": 14,
+      "label": "Day -17",
+      "actual": 609,
+      "predicted": 620,
+      "naive": 626,
+      "movingAvg": 551,
+      "arima": 616,
+      "tempC": -20.1,
+      "troops": 125,
+      "residual": 11
+    },
+    {
+      "day": 15,
+      "label": "Day -16",
+      "actual": 627,
+      "predicted": 627,
+      "naive": 609,
+      "movingAvg": 561,
+      "arima": 634,
+      "tempC": -21.0,
+      "troops": 125,
+      "residual": 0
+    },
+    {
+      "day": 16,
+      "label": "Day -15",
+      "actual": 590,
+      "predicted": 611,
+      "naive": 627,
+      "movingAvg": 577,
+      "arima": 611,
+      "tempC": -19.8,
+      "troops": 130,
+      "residual": 21
+    },
+    {
+      "day": 17,
+      "label": "Day -14",
+      "actual": 562,
+      "predicted": 567,
+      "naive": 590,
+      "movingAvg": 594,
+      "arima": 586,
+      "tempC": -18.5,
+      "troops": 130,
+      "residual": 5
+    },
+    {
+      "day": 18,
+      "label": "Day -13",
+      "actual": 562,
+      "predicted": 537,
+      "naive": 562,
+      "movingAvg": 601,
+      "arima": 562,
+      "tempC": -17.2,
+      "troops": 130,
+      "residual": -25
+    },
+    {
+      "day": 19,
+      "label": "Day -12",
+      "actual": 522,
+      "predicted": 553,
+      "naive": 562,
+      "movingAvg": 597,
+      "arima": 539,
+      "tempC": -16.0,
+      "troops": 130,
+      "residual": 31
+    },
+    {
+      "day": 20,
+      "label": "Day -11",
+      "actual": 504,
+      "predicted": 534,
+      "naive": 522,
+      "movingAvg": 585,
+      "arima": 528,
+      "tempC": -15.4,
+      "troops": 130,
+      "residual": 30
+    },
+    {
+      "day": 21,
+      "label": "Day -10",
+      "actual": 513,
+      "predicted": 517,
+      "naive": 504,
+      "movingAvg": 568,
+      "arima": 505,
+      "tempC": -14.2,
+      "troops": 120,
+      "residual": 4
+    },
+    {
+      "day": 22,
+      "label": "Day -9",
+      "actual": 524,
+      "predicted": 596,
+      "naive": 513,
+      "movingAvg": 554,
+      "arima": 550,
+      "tempC": -16.5,
+      "troops": 120,
+      "residual": 72
+    },
+    {
+      "day": 23,
+      "label": "Day -8",
+      "actual": 605,
+      "predicted": 581,
+      "naive": 524,
+      "movingAvg": 540,
+      "arima": 564,
+      "tempC": -17.2,
+      "troops": 120,
+      "residual": -24
+    },
+    {
+      "day": 24,
+      "label": "Day -7",
+      "actual": 600,
+      "predicted": 639,
+      "naive": 605,
+      "movingAvg": 542,
+      "arima": 588,
+      "tempC": -18.4,
+      "troops": 120,
+      "residual": 39
+    },
+    {
+      "day": 25,
+      "label": "Day -6",
+      "actual": 633,
+      "predicted": 596,
+      "naive": 600,
+      "movingAvg": 547,
+      "arima": 609,
+      "tempC": -19.5,
+      "troops": 120,
+      "residual": -37
+    },
+    {
+      "day": 26,
+      "label": "Day -5",
+      "actual": 677,
+      "predicted": 646,
+      "naive": 633,
+      "movingAvg": 557,
+      "arima": 648,
+      "tempC": -21.5,
+      "troops": 120,
+      "residual": -31
+    },
+    {
+      "day": 27,
+      "label": "Day -4",
+      "actual": 664,
+      "predicted": 668,
+      "naive": 677,
+      "movingAvg": 579,
+      "arima": 658,
+      "tempC": -22.0,
+      "troops": 120,
+      "residual": 4
+    },
+    {
+      "day": 28,
+      "label": "Day -3",
+      "actual": 663,
+      "predicted": 603,
+      "naive": 664,
+      "movingAvg": 602,
+      "arima": 628,
+      "tempC": -20.4,
+      "troops": 120,
+      "residual": -60
+    },
+    {
+      "day": 29,
+      "label": "Day -2",
+      "actual": 555,
+      "predicted": 614,
+      "naive": 663,
+      "movingAvg": 624,
+      "arima": 598,
+      "tempC": -18.8,
+      "troops": 120,
+      "residual": 59
+    },
+    {
+      "day": 30,
+      "label": "Day -1",
+      "actual": 539,
+      "predicted": 549,
+      "naive": 555,
+      "movingAvg": 628,
+      "arima": 573,
+      "tempC": -17.5,
+      "troops": 120,
+      "residual": 10
+    }
+  ]
+}

@@ -51,7 +51,7 @@ export const INITIAL_NODES: TacticalNode[] = [
     coordinates: [34.5218, 76.9842],
     elevationFt: 13800,
     dosClassI: 12.0,
-    dosClassIII: 3.2, // Critical due to blizzard
+    dosClassIII: 4.0, // Calculated from 4,200L / 1,050 L/day blizzard burn = 4.0d (96h stockout)
     dosClassV: 18.0,
     status: 'CRITICAL',
     threatLevel: 'HIGH',
@@ -77,7 +77,7 @@ export const INITIAL_NODES: TacticalNode[] = [
     coordinates: [34.3600, 76.6500],
     elevationFt: 11400,
     dosClassI: 15.0,
-    dosClassIII: 2.1, // Anomaly leak
+    dosClassIII: 0.4, // Calculated from 1,150L / (120 L/hr * 24) = 0.4d (9.6h runway)
     dosClassV: 35.0,
     status: 'CRITICAL',
     threatLevel: 'HIGH',
@@ -167,7 +167,7 @@ export const INITIAL_ALERTS: AlertItem[] = [
     sourceNode: 'FAP Rudra',
     targetAsset: 'POL-Tank-03 (Bulk Fuel)',
     headline: 'Ultrasonic Telemetry Anomaly: Rapid Fuel Drop (-120 L/hr)',
-    detail: 'Depletion rate exceeds maximum operational draw while digital dispense gate is verified closed. Structural breach or seal failure probability: 89%.',
+    detail: 'Depletion rate exceeds maximum operational draw while digital dispense gate is verified closed. Critical runway: 9.6 hours (0.4d). Structural breach or seal failure probability: 89%.',
     timestamp: '16:42:10 hrs',
     acknowledged: false,
     actionRequired: true,
@@ -190,8 +190,8 @@ export const INITIAL_ALERTS: AlertItem[] = [
     category: 'PREDICTIVE_DEPLETION',
     sourceNode: 'FP Agni',
     targetAsset: 'Class III Arctic Fuel Storage',
-    headline: 'Stockout Projected in 96 Hours (Blizzard Cold Wave)',
-    detail: 'Western Disturbance will plunge temps to -22°C. Generator burn rate increasing by +38%. Pre-emptive dispatch required before road freeze.',
+    headline: 'Stockout Projected in 96 Hours (4.0d) (Blizzard Cold Wave)',
+    detail: 'Western Disturbance will plunge temps to -22°C. Current Arctic fuel runway will deplete in 96 hours (4.0 days). Pre-emptive dispatch required before road freeze.',
     timestamp: '16:15:00 hrs',
     acknowledged: true,
     actionRequired: true,
@@ -221,7 +221,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     quantityOnHand: 4200,
     unit: 'Litres',
     reorderThreshold: 5000,
-    dos: 3.2,
+    dos: 4.0, // 4,200L / 1,050 L/day blizzard burn = 4.0d (96h)
     status: 'CRITICAL',
     sensorId: 'US-AGNI-TANK1',
     sensorHealth: 'HEALTHY',
@@ -237,7 +237,7 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     quantityOnHand: 1150,
     unit: 'Litres',
     reorderThreshold: 4500,
-    dos: 1.8,
+    dos: 0.4, // 1,150L / (120 L/hr * 24) = 0.4d (9.6 hrs)
     status: 'LEAK_ANOMALY',
     sensorId: 'US-TANK-03',
     sensorHealth: 'ANOMALY_ALARM',

@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { AlertTriangle, Activity, ShieldAlert, X, Volume2, Ban, CheckCircle } from 'lucide-react';
 
 export const DiagnosticModal: React.FC = () => {
-  const { isDiagnosticModalOpen, setIsDiagnosticModalOpen, remedyTankLeak } = useApp();
+  const { isDiagnosticModalOpen, setIsDiagnosticModalOpen, remedyTankLeak, rudraLeakAnalysis } = useApp();
 
   if (!isDiagnosticModalOpen) return null;
 
@@ -42,12 +42,12 @@ export const DiagnosticModal: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-center">
               <p className="text-[10px] font-mono text-slate-400 uppercase">Current Volume</p>
-              <p className="text-lg font-mono font-bold text-red-400 mt-0.5">1,150 L</p>
-              <p className="text-[10px] text-red-400 font-mono">Capacity: 5,000 L</p>
+              <p className="text-lg font-mono font-bold text-red-400 mt-0.5">{rudraLeakAnalysis.volumeRemainingLitres.toLocaleString()} L</p>
+              <p className="text-[10px] text-red-400 font-mono">Runway: {rudraLeakAnalysis.formattedDays} ({rudraLeakAnalysis.formattedHours})</p>
             </div>
             <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-center">
               <p className="text-[10px] font-mono text-slate-400 uppercase">Depletion Rate</p>
-              <p className="text-lg font-mono font-bold text-red-400 mt-0.5">-120 L/hr</p>
+              <p className="text-lg font-mono font-bold text-red-400 mt-0.5">{rudraLeakAnalysis.leakRateHourly} L/hr</p>
               <p className="text-[10px] text-red-400 font-mono">Baseline: 0 L/hr</p>
             </div>
             <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-center">
@@ -89,7 +89,7 @@ export const DiagnosticModal: React.FC = () => {
             <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
               <span>15:45 hrs (Stable)</span>
               <span className="text-red-400">16:15 hrs (Rupture Event)</span>
-              <span className="text-red-400 font-bold">16:45 hrs (1,150 L)</span>
+              <span className="text-red-400 font-bold">16:45 hrs ({rudraLeakAnalysis.volumeRemainingLitres.toLocaleString()} L)</span>
             </div>
           </div>
 

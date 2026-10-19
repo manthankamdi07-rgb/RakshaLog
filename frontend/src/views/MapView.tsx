@@ -20,6 +20,7 @@ import {
   loadGoogleMapsApi,
 } from '../utils/mapProviders';
 import { GoogleMapsModal } from '../components/GoogleMapsModal';
+import { WeatherTerrainOutlookStrip } from '../components/WeatherTerrainOutlookStrip';
 
 export const MapView: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +36,9 @@ export const MapView: React.FC = () => {
     setSelectedConvoy,
     rerouteConvoy,
     playTacticalSound,
+    temperature,
+    fpAgniBlizzard,
+    theme,
   } = useApp();
 
   const [activeLayers, setActiveLayers] = useState({
@@ -50,8 +54,20 @@ export const MapView: React.FC = () => {
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
+  // Offline Fallback Mode State
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      if (!navigator.onLine) return true;
+      const saved = localStorage.getItem('RAKSHALOG_OFFLINE_MAP_MODE');
+      if (saved === 'true') return true;
+    }
+    return false;
+  });
+  const [offlineReason, setOfflineReason] = useState<string>('');
+
   const [chosenOption, setChosenOption] = useState<'OPT-A' | 'OPT-B'>('OPT-A');
   const [rerouteConfirmed, setRerouteConfirmed] = useState(false);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -94,7 +110,28 @@ export const MapView: React.FC = () => {
     };
   }, []);
 
-  // Dynamically update basemap tile layer (Google Maps / ESRI / Carto)
+  // Listen for browser online/offline events
+  useEffect(() => {
+    const handleOnline = () => {
+      const saved = localStorage.getItem('RAKSHALOG_OFFLINE_MAP_MODE');
+      if (saved !== 'true') {
+        setIsOfflineMode(false);
+        setOfflineReason('');
+      }
+    };
+    const handleOffline = () => {
+      setIsOfflineMode(true);
+      setOfflineReason('Network connection lost. Automatically switched to OpenStreetMap offline fallback.');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Dynamically update basemap tile layer (Google Maps / OpenStreetMap Offline Fallback / ESRI / Carto)
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
@@ -106,13 +143,18 @@ export const MapView: React.FC = () => {
       currentTileLayerRef.current = null;
     }
 
-    const providerConfig = MAP_PROVIDERS[currentProvider] || MAP_PROVIDERS['google-hybrid'];
+    // Determine effective provider (auto-fallback to OpenStreetMap when offline)
+    const effectiveProviderId: MapProviderId = isOfflineMode
+      ? (currentProvider.startsWith('osm-') ? currentProvider : 'osm-standard')
+      : currentProvider;
+
+    const providerConfig = MAP_PROVIDERS[effectiveProviderId] || MAP_PROVIDERS['osm-standard'];
     let tileUrl = providerConfig.url;
 
-    // Attach Google key or Carto key if configured
-    if (providerConfig.id.startsWith('google') && googleApiKey) {
+    // Attach Google key or Carto key if configured and online
+    if (!isOfflineMode && providerConfig.id.startsWith('google') && googleApiKey) {
       tileUrl += `${tileUrl.includes('?') ? '&' : '?'}key=${encodeURIComponent(googleApiKey)}`;
-    } else if (providerConfig.id === 'carto-dark' && import.meta.env.VITE_CARTO_API_KEY) {
+    } else if (!isOfflineMode && providerConfig.id === 'carto-dark' && import.meta.env.VITE_CARTO_API_KEY) {
       tileUrl += `?api_key=${encodeURIComponent(import.meta.env.VITE_CARTO_API_KEY)}`;
     }
 
@@ -129,11 +171,38 @@ export const MapView: React.FC = () => {
     const newTileLayer = L.tileLayer(tileUrl, tileOptions).addTo(map);
     currentTileLayerRef.current = newTileLayer;
 
-    // Load Google Maps JS SDK if key is provided
-    if (googleApiKey) {
-      loadGoogleMapsApi(googleApiKey);
+    // Automatic Fallback Detection: If Google Maps tiles fail or error, fall back to OpenStreetMap
+    let tileErrors = 0;
+    newTileLayer.on('tileerror', () => {
+      tileErrors++;
+      if (tileErrors >= 2 && !isOfflineMode && effectiveProviderId.startsWith('google')) {
+        console.warn('Google Maps tile service unavailable. Engaging OpenStreetMap offline fallback...');
+        setIsOfflineMode(true);
+        setOfflineReason('Google Maps API tiles unreachable. OpenStreetMap offline fallback automatically engaged.');
+      }
+    });
+
+    // Check Google Maps API status if key is configured
+    if (!isOfflineMode && googleApiKey && effectiveProviderId.startsWith('google')) {
+      loadGoogleMapsApi(googleApiKey).then((success) => {
+        if (!success && !isOfflineMode) {
+          console.warn('Google Maps API failed to load. Auto-falling back to OpenStreetMap.');
+          setIsOfflineMode(true);
+          setOfflineReason('Google Maps API service unreachable. OpenStreetMap fallback active.');
+        }
+      });
     }
-  }, [mapReady, currentProvider, googleApiKey]);
+  }, [mapReady, currentProvider, googleApiKey, isOfflineMode]);
+
+  // Adjust Leaflet canvas size when weather strip state changes
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      const timer = setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [temperature, fpAgniBlizzard, passK4Blocked, mapReady]);
 
   // Render Map Overlays, Markers & Routes
   useEffect(() => {
@@ -296,12 +365,44 @@ export const MapView: React.FC = () => {
     const next = e.target.value as MapProviderId;
     setCurrentProvider(next);
     setStoredMapProvider(next);
+    if (next.startsWith('osm-')) {
+      setIsOfflineMode(true);
+      setOfflineReason('OpenStreetMap fallback layer selected.');
+      localStorage.setItem('RAKSHALOG_OFFLINE_MAP_MODE', 'true');
+    } else {
+      setIsOfflineMode(false);
+      setOfflineReason('');
+      localStorage.setItem('RAKSHALOG_OFFLINE_MAP_MODE', 'false');
+    }
+  };
+
+  const toggleOfflineMode = () => {
+    const next = !isOfflineMode;
+    setIsOfflineMode(next);
+    localStorage.setItem('RAKSHALOG_OFFLINE_MAP_MODE', next ? 'true' : 'false');
+    if (next) {
+      setOfflineReason('Manual offline fallback mode engaged by Commander.');
+    } else {
+      setOfflineReason('');
+    }
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col lg:flex-row overflow-hidden bg-[#0B0F19]">
-      {/* Map Canvas */}
-      <div className="flex-1 relative h-full">
+    <div className={`h-[calc(100vh-5rem)] flex flex-col overflow-hidden ${theme === 'light' ? 'bg-slate-100' : 'bg-[#0B0F19]'}`}>
+      {/* Weather & Terrain Outlook Strip (Collapsed by default into single-line summary bar) */}
+      <div className="p-3 pb-1 z-30 shrink-0">
+        <WeatherTerrainOutlookStrip
+          theme={theme}
+          temperature={temperature}
+          isBlizzardActive={fpAgniBlizzard}
+          passK4Blocked={passK4Blocked}
+          compact={true}
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        {/* Map Canvas */}
+        <div className="flex-1 relative h-full">
         <div ref={mapContainerRef} className="w-full h-full z-10" />
 
         {/* Map Header Overlay Controls */}
@@ -315,15 +416,65 @@ export const MapView: React.FC = () => {
 
             <span className="text-slate-600 hidden sm:inline">|</span>
 
+            {/* Status Badge: Online Map vs Offline Fallback Map (Requirement) */}
+            {isOfflineMode ? (
+              <div
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-amber-950/90 border border-amber-500/80 text-amber-300 font-mono text-[11px] font-bold shadow-md shadow-amber-950/40"
+                title="OpenStreetMap tiles active via Leaflet. Routes, hazards, and convoys fully operational."
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                <span>Offline fallback map</span>
+                <span className="text-[9px] text-amber-400/80 font-normal hidden sm:inline">(OSM / Leaflet)</span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/80 text-emerald-300 font-mono text-[11px] font-bold shadow-sm"
+                title="Online Google Maps / Satellite tiles connected."
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Online map</span>
+                <span className="text-[9px] text-emerald-400/80 font-normal hidden sm:inline">
+                  ({MAP_PROVIDERS[currentProvider]?.category === 'Google Maps' ? 'Google' : 'Satellite'})
+                </span>
+              </div>
+            )}
+
+            {/* Offline Simulation / Revert Toggle Button */}
+            <button
+              onClick={toggleOfflineMode}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition-all border ${
+                isOfflineMode
+                  ? 'bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-500 shadow-sm'
+                  : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title={
+                isOfflineMode
+                  ? 'Click to restore Online Google Maps'
+                  : 'Simulate Google Maps outage to test automated OpenStreetMap fallback'
+              }
+            >
+              {isOfflineMode ? 'REVERT TO ONLINE MAP' : 'TEST OFFLINE FALLBACK'}
+            </button>
+
+            <span className="text-slate-600 hidden sm:inline">|</span>
+
             {/* Tactical Basemap Switcher */}
             <div className="flex items-center space-x-1.5 bg-slate-900/90 border border-slate-700 rounded-md px-2 py-0.5">
               <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <select
-                value={currentProvider}
+                value={isOfflineMode ? (currentProvider.startsWith('osm-') ? currentProvider : 'osm-standard') : currentProvider}
                 onChange={handleProviderChange}
                 className="bg-transparent text-cyan-300 text-[11px] font-mono focus:outline-none cursor-pointer pr-1"
                 title="Switch GIS Basemap Layer"
               >
+                <optgroup label="OpenStreetMap (Offline Fallback)">
+                  <option value="osm-standard" className="bg-[#0B0F19] text-white">
+                    OpenStreetMap (Offline Standard)
+                  </option>
+                  <option value="osm-topo" className="bg-[#0B0F19] text-white">
+                    OpenTopoMap (Himalayan Relief)
+                  </option>
+                </optgroup>
                 <optgroup label="Google Maps (Himalayas High-Res)">
                   <option value="google-hybrid" className="bg-[#0B0F19] text-white">
                     Google Hybrid (Satellite + Roads)
@@ -418,41 +569,76 @@ export const MapView: React.FC = () => {
           </button>
         </div>
 
-        {/* Map Legend Overlay (Bottom Left) */}
-        <div className="absolute bottom-4 left-4 z-20 glass-panel p-2.5 rounded-lg border border-slate-800 text-[11px] font-mono space-y-1.5 text-slate-300 shadow-xl max-w-xs">
-          <div className="flex items-center justify-between text-[10px] text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-800/80 pb-1">
-            <span>Map Indicators</span>
-            <span className="text-cyan-400 truncate max-w-[140px] text-right">
-              {MAP_PROVIDERS[currentProvider]?.name.split('(')[0]}
-            </span>
+        {/* Offline Fallback Operational Notice Ribbon */}
+        {isOfflineMode && (
+          <div className="absolute bottom-36 left-4 z-20 max-w-sm p-2.5 rounded-lg bg-amber-950/95 border border-amber-600/80 text-amber-200 text-xs font-mono shadow-2xl backdrop-blur-md flex items-start space-x-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-[11px] text-amber-300 uppercase tracking-wide">
+                  OFFLINE FALLBACK ENGAGED
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-900 text-amber-100 border border-amber-700 font-bold">
+                  OSM ACTIVE
+                </span>
+              </div>
+              <p className="text-[10px] text-amber-200/90 mt-0.5 leading-tight">
+                {offlineReason || 'Google Maps API unavailable.'} 100% of tactical routes, convoys, and Pass K-4 hazard markers remain operational without external Google API dependency.
+              </p>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500"></span>
-            <span>Base Depot Garuda (Central Hub)</span>
+        )}
+
+        {/* Map Legend Overlay (Bottom Left) - Collapsible (Default: Small Icon) */}
+        {!isLegendOpen ? (
+          <button
+            onClick={() => setIsLegendOpen(true)}
+            className="absolute bottom-4 left-4 z-20 p-2 rounded-lg bg-slate-900/95 hover:bg-slate-800 border border-slate-700 text-slate-300 shadow-xl transition-all flex items-center space-x-1.5 text-xs font-mono cursor-pointer"
+            title="Open Map Legend"
+          >
+            <Layers className="w-4 h-4 text-cyan-400" />
+            <span className="text-[11px] font-bold">Legend</span>
+          </button>
+        ) : (
+          <div className="absolute bottom-4 left-4 z-20 glass-panel p-3 rounded-xl border border-slate-700/80 text-[11px] font-mono space-y-1.5 text-slate-300 shadow-2xl max-w-xs animate-fade-in">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 pb-1">
+              <span>Map Indicators</span>
+              <button
+                onClick={() => setIsLegendOpen(false)}
+                className="text-slate-400 hover:text-white font-bold px-1.5 py-0.5 rounded hover:bg-slate-800 cursor-pointer"
+                title="Collapse Legend"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500"></span>
+              <span className="font-sans">Base Depot Garuda (Central Hub)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-500"></span>
+              <span className="font-sans">Critical Forward Post (Deficit)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span className="font-sans">Verified Clear / Bypass Route</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="w-2.5 h-0.5 bg-red-500"></span>
+              <span className="font-sans">Pass K-4 Impassable (Landslide)</span>
+            </div>
+            <div className="pt-1.5 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+              <span>Sector Trishul &bull; 34.42° N</span>
+              <button
+                onClick={() => setIsGoogleModalOpen(true)}
+                className="text-cyan-400 hover:text-cyan-300 underline font-mono cursor-pointer flex items-center space-x-1"
+              >
+                <Key className="w-2.5 h-2.5" />
+                <span>Map API</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-sm bg-red-500"></span>
-            <span>Critical Forward Post (Deficit)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span>Verified Clear / Bypass Route</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-0.5 bg-red-500"></span>
-            <span>Pass K-4 Impassable (Landslide)</span>
-          </div>
-          <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400">
-            <span>Sector Trishul &bull; 34.42° N</span>
-            <button
-              onClick={() => setIsGoogleModalOpen(true)}
-              className="text-cyan-400 hover:text-cyan-300 underline font-mono cursor-pointer flex items-center space-x-1"
-            >
-              <Key className="w-2.5 h-2.5" />
-              <span>Map API Settings</span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Convoy Inspector Drawer & Reroute Controller (Right Column) */}
@@ -462,9 +648,6 @@ export const MapView: React.FC = () => {
             <Truck className="w-4 h-4 text-cyan-400" />
             <h2 className="font-display font-bold text-sm text-white">CONVOY INSPECTOR</h2>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
-            GPS TELEMATICS
-          </span>
         </div>
 
         {selectedConvoy ? (
@@ -491,7 +674,7 @@ export const MapView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">SPEED:</span>
-                  <span className="text-slate-200">{selectedConvoy.speedKmh} km/h (Live)</span>
+                  <span className="text-slate-200">{selectedConvoy.speedKmh} km/h</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">CARGO:</span>
@@ -507,16 +690,16 @@ export const MapView: React.FC = () => {
             {/* AI Dynamic Rerouting Engine Card */}
             <div className="glass-panel p-4 rounded-xl border border-amber-600/60 bg-gradient-to-b from-amber-950/20 to-slate-900 space-y-3">
               <div className="flex items-center space-x-2 text-amber-400 text-xs font-mono">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="font-bold">PASS K-4 CLOSED (ROCKFALL)</span>
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed font-sans">
                 420T rockfall confirmed at Pass K-4 elevation 13,200 ft. Automated GIS engine has computed 2 alternate corridors:
               </p>
 
               {/* Reroute Options */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {/* Option A (Recommended) */}
                 <div
                   onClick={() => setChosenOption('OPT-A')}
@@ -527,17 +710,19 @@ export const MapView: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-emerald-300 flex items-center space-x-1.5">
+                    <span className="text-emerald-300 flex items-center space-x-1.5 flex-wrap">
                       <span>Option A: Valley Bypass Route-9</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-900 text-emerald-200 font-mono">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-900 text-emerald-200 font-mono">
                         RECOMMENDED
                       </span>
                     </span>
-                    <span className="font-mono text-emerald-400">94% Safety</span>
+                    <span className="font-mono text-emerald-400 text-[11px] shrink-0 ml-1">94% Safety</span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mt-1">
-                    <span>Delta: +22.4 km | +45 mins</span>
-                    <span>All-Weather Class 40</span>
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-mono text-slate-400 mt-2 pt-1 border-t border-emerald-950">
+                    <span className="text-slate-300">Delta: +22.4 km &bull; +45 mins</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold">
+                      All-Weather Class 40
+                    </span>
                   </div>
                 </div>
 
@@ -552,11 +737,13 @@ export const MapView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="text-slate-300">Option B: High Ridge Snow Trail</span>
-                    <span className="font-mono text-amber-400">61% Safety</span>
+                    <span className="font-mono text-amber-400 text-[11px] shrink-0 ml-1">61% Safety</span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mt-1">
-                    <span>Delta: +14.1 km | +70 mins</span>
-                    <span>Unpaved Crosswinds</span>
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-mono text-slate-400 mt-2 pt-1 border-t border-slate-800">
+                    <span className="text-slate-300">Delta: +14.1 km &bull; +70 mins</span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 text-[10px] font-bold">
+                      Unpaved Crosswinds
+                    </span>
                   </div>
                 </div>
               </div>
@@ -612,6 +799,7 @@ export const MapView: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
 
       {/* Google Maps API Configuration Modal */}
       <GoogleMapsModal

@@ -4,11 +4,13 @@ import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { CommanderPinModal } from './components/CommanderPinModal';
 import { DiagnosticModal } from './components/DiagnosticModal';
+import { LoginView } from './components/LoginView';
 
 import { OverviewView } from './views/OverviewView';
 import { MapView } from './views/MapView';
 import { ForecastView } from './views/ForecastView';
 import { InventoryView } from './views/InventoryView';
+import { DataIntegrationView } from './views/DataIntegrationView';
 import { DispatchView } from './views/DispatchView';
 import { ReportsView } from './views/ReportsView';
 import { SandboxView } from './views/SandboxView';
@@ -22,6 +24,7 @@ const MainContent: React.FC = () => {
       {activeTab === 'map' && <MapView />}
       {activeTab === 'forecast' && <ForecastView />}
       {activeTab === 'inventory' && <InventoryView />}
+      {activeTab === 'integration' && <DataIntegrationView />}
       {activeTab === 'dispatch' && <DispatchView />}
       {activeTab === 'reports' && <ReportsView />}
       {activeTab === 'sandbox' && <SandboxView />}
@@ -30,7 +33,11 @@ const MainContent: React.FC = () => {
 };
 
 const AppShell: React.FC = () => {
-  const { theme } = useApp();
+  const { theme, isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return <LoginView />;
+  }
 
   return (
     <div className={`min-h-screen flex flex-col ${theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-[#0B0F19] text-slate-100'} select-none transition-colors duration-200`}>
@@ -39,6 +46,10 @@ const AppShell: React.FC = () => {
         <Sidebar />
         <MainContent />
       </div>
+      <footer className={`h-6 border-t ${theme === 'light' ? 'border-slate-200 bg-white text-slate-500' : 'border-slate-800 bg-[#070A11] text-slate-500'} px-4 flex items-center justify-between text-[11px] font-mono shrink-0 transition-colors`}>
+        <span>RAKSHALOG TACTICAL LOGISTICS OS &bull; SECTOR TRISHUL (PS-26251)</span>
+        <span className="text-slate-400 font-semibold tracking-wide">Synthetic Data / Unclassified</span>
+      </footer>
       <CommanderPinModal />
       <DiagnosticModal />
     </div>

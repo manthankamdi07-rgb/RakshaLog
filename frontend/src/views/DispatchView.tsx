@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Truck,
@@ -10,19 +10,22 @@ import {
   Layers,
   ArrowRight,
   TrendingUp,
+  Compass,
 } from 'lucide-react';
+import { FleetCapacityPanel } from '../components/FleetCapacityPanel';
 
 export const DispatchView: React.FC = () => {
-  const { dispatchProposal, setIsPinModalOpen, currentPersona } = useApp();
+  const { dispatchProposal, setIsPinModalOpen, currentPersona, agniFuelAnalysis, theme } = useApp();
+  const [activeTab, setActiveTab] = useState<'fleet' | 'plan' | 'all'>('fleet');
 
   const isAuthorized = dispatchProposal.status === 'AUTHORIZED';
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`}>
         <div>
-          <h1 className="font-display font-bold text-xl text-white tracking-wide flex items-center space-x-2">
+          <h1 className={`font-display font-bold text-xl tracking-wide flex items-center space-x-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
             <span>MULTI-DROP DISPATCH OPTIMIZER & AUTHORIZATION</span>
             <span
               className={`text-xs font-mono font-semibold px-2 py-0.5 rounded ${
@@ -57,8 +60,69 @@ export const DispatchView: React.FC = () => {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className={`flex flex-wrap items-center gap-2 border-b pb-3 ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`}>
+        <button
+          onClick={() => setActiveTab('fleet')}
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-mono transition-all ${
+            activeTab === 'fleet'
+              ? theme === 'light'
+                ? 'bg-cyan-600 text-white font-bold shadow-md shadow-cyan-200'
+                : 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-900/40'
+              : theme === 'light'
+              ? 'bg-white text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+              : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <Truck className="w-3.5 h-3.5" />
+          <span>Fleet & Capacity Matrix</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('plan')}
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-mono transition-all ${
+            activeTab === 'plan'
+              ? theme === 'light'
+                ? 'bg-cyan-600 text-white font-bold shadow-md shadow-cyan-200'
+                : 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-900/40'
+              : theme === 'light'
+              ? 'bg-white text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+              : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <Compass className="w-3.5 h-3.5" />
+          <span>Dispatch Plan & Waypoints</span>
+          <span className="text-[10px] opacity-75">DP-2026-108</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-mono transition-all ${
+            activeTab === 'all'
+              ? theme === 'light'
+                ? 'bg-cyan-600 text-white font-bold shadow-md shadow-cyan-200'
+                : 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-900/40'
+              : theme === 'light'
+              ? 'bg-white text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+              : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>All Modules</span>
+        </button>
+      </div>
+
+      {/* Fleet & Capacity Tab Section (Requirement 1 - 5) */}
+      {(activeTab === 'fleet' || activeTab === 'all') && (
+        <FleetCapacityPanel
+          theme={theme}
+          fuelReorderLitres={agniFuelAnalysis.recommendedReorderLitres}
+        />
+      )}
+
       {/* Main Grid: Plan Specification (Left 2 cols) + Load Optimization Meters (Right col) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {(activeTab === 'plan' || activeTab === 'all') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Manifest & Multi-Drop Timeline */}
         <div className="lg:col-span-2 space-y-6">
           {/* Plan Meta Card */}
@@ -106,7 +170,7 @@ export const DispatchView: React.FC = () => {
                   <span className="text-cyan-400 font-bold">ORIGIN: Base Depot Garuda</span>
                   <span className="text-slate-500 ml-2">Loading Departure: 05:30 hrs</span>
                   <p className="text-slate-400 text-[11px] mt-0.5">
-                    Payload: 4,600L Arctic Fuel (Bowser 1) + 1,000 MRE Rations + 20 Med Kits (Truck 1)
+                    Payload: {agniFuelAnalysis.recommendedReorderLitres.toLocaleString()}L Arctic Fuel (Bowser 1) + 1,000 MRE Rations + 20 Med Kits (Truck 1)
                   </p>
                 </div>
               </div>
@@ -120,10 +184,10 @@ export const DispatchView: React.FC = () => {
                     <span className="text-cyan-400">ETA: +3.5 hrs (09:00 hrs)</span>
                   </div>
                   <p className="text-slate-300 text-[11px] mt-1">
-                    Discharge: 4,600 Litres Arctic Diesel (Refuels US-AGNI-TANK1) + 400 MRE Packs
+                    Discharge: {agniFuelAnalysis.recommendedReorderLitres.toLocaleString()} Litres Arctic Diesel (Refuels US-AGNI-TANK1) + 400 MRE Packs
                   </p>
                   <p className="text-emerald-400 text-[10px] mt-1">
-                    Impact: Restores FP Agni Days of Supply from 3.2d &rarr; 14.5d (Safe against blizzard)
+                    Impact: Restores FP Agni Days of Supply from {agniFuelAnalysis.formattedDays} &rarr; 14.5d (Safe against blizzard)
                   </p>
                 </div>
               </div>
@@ -181,7 +245,7 @@ export const DispatchView: React.FC = () => {
                 <div className="bg-emerald-500 h-full rounded-full" style={{ width: '92%' }}></div>
               </div>
               <div className="flex justify-between text-[10px] font-mono text-slate-500">
-                <span>Load: 4,600L / 5,000L</span>
+                <span>Load: {agniFuelAnalysis.recommendedReorderLitres.toLocaleString()}L / 5,000L</span>
                 <span>Baffled Anti-Slosh: OK</span>
               </div>
             </div>
@@ -213,6 +277,7 @@ export const DispatchView: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
